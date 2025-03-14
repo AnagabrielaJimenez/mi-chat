@@ -25,9 +25,16 @@ export default function ChatPage() {
     const subscription = supabase
       .channel('realtime-messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        useMessagesStore.setState((state) => ({ messages: [...state.messages, payload.new] }));
+        useMessagesStore.setState((state) => {
+          // 🔹 Evitar insertar duplicados en tiempo real
+          if (!state.messages.some(msg => msg.id === payload.new.id)) {
+            return { messages: [...state.messages, payload.new] };
+          }
+          return state;
+        });
       })
       .subscribe();
+
     return () => {
       subscription.unsubscribe();
     };
@@ -48,7 +55,7 @@ export default function ChatPage() {
   
     await useMessagesStore.getState().sendMessage(senderId, receiverId, newMessage);
     setNewMessage('');
-  }  
+  }
 
   async function handleLogout() {
     await logout();
